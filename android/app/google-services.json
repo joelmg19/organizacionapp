@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "338736390335",
+    "project_id": "organizacionapp-a4fb5",
+    "storage_bucket": "organizacionapp-a4fb5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:338736390335:android:51a6359c720e4c5eb8660a",
+        "android_client_info": {
+          "package_name": "com.example.app_organizacion"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBrf3byMumLn5yb_cltRYpD3ndb4dhx2Bc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
