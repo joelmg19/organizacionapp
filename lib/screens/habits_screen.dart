@@ -4,6 +4,7 @@ import 'package:producti_app/providers/habit_provider.dart';
 import 'package:producti_app/models/habit.dart';
 import 'package:producti_app/theme/app_colors.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:producti_app/screens/add_habit_screen.dart';
 
 class HabitsScreen extends StatelessWidget {
   const HabitsScreen({super.key});
@@ -12,6 +13,7 @@ class HabitsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final habitProvider = Provider.of<HabitProvider>(context);
     final habits = habitProvider.habits;
+    final activityData = habitProvider.weeklyActivity; // Datos reales para el gráfico
 
     return Scaffold(
       body: SafeArea(
@@ -68,7 +70,7 @@ class HabitsScreen extends StatelessWidget {
               ),
             ),
 
-            // Weekly Chart
+            // Weekly Chart con datos reales
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -88,7 +90,7 @@ class HabitsScreen extends StatelessWidget {
                         const SizedBox(height: 16),
                         SizedBox(
                           height: 150,
-                          child: _buildWeeklyChart(),
+                          child: _buildWeeklyChart(activityData),
                         ),
                       ],
                     ),
@@ -102,7 +104,7 @@ class HabitsScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
-                  (context, index) {
+                      (context, index) {
                     final habit = habits[index];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -120,8 +122,10 @@ class HabitsScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Función de crear hábito próximamente')),
+          // Navegar a la pantalla de crear hábito
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => AddHabitScreen()),
           );
         },
         child: const Icon(Icons.add),
@@ -162,15 +166,27 @@ class HabitsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildWeeklyChart() {
-    // Mock data for weekly activity
-    final data = [3, 5, 4, 6, 5, 7, 4];
-    final days = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+  Widget _buildWeeklyChart(List<int> activity) {
+    final now = DateTime.now();
+    final dayNames = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+
+    // Generar etiquetas dinámicas para que el último día sea siempre "hoy"
+    final labels = List.generate(7, (i) {
+      final date = now.subtract(Duration(days: 6 - i));
+      return dayNames[date.weekday - 1];
+    });
+
+    // Calcular el máximo de Y para que el gráfico no se vea vacío si hay pocos hábitos
+    double maxScaleY = 5;
+    if (activity.isNotEmpty) {
+      final maxActivity = activity.reduce((a, b) => a > b ? a : b);
+      if (maxActivity > 5) maxScaleY = maxActivity.toDouble() + 1;
+    }
 
     return BarChart(
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
-        maxY: 10,
+        maxY: maxScaleY,
         barTouchData: BarTouchData(enabled: false),
         titlesData: FlTitlesData(
           show: true,
@@ -178,9 +194,10 @@ class HabitsScreen extends StatelessWidget {
             sideTitles: SideTitles(
               showTitles: true,
               getTitlesWidget: (value, meta) {
-                if (value.toInt() >= 0 && value.toInt() < days.length) {
+                int index = value.toInt();
+                if (index >= 0 && index < labels.length) {
                   return Text(
-                    days[value.toInt()],
+                    labels[index],
                     style: const TextStyle(fontSize: 12),
                   );
                 }
@@ -200,7 +217,7 @@ class HabitsScreen extends StatelessWidget {
         ),
         gridData: const FlGridData(show: false),
         borderData: FlBorderData(show: false),
-        barGroups: data.asMap().entries.map((entry) {
+        barGroups: activity.asMap().entries.map((entry) {
           return BarChartGroupData(
             x: entry.key,
             barRods: [

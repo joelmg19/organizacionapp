@@ -52,7 +52,7 @@ class Habit {
   bool isCompletedToday() {
     final today = DateTime.now();
     return completedDates.any((date) =>
-        date.year == today.year &&
+    date.year == today.year &&
         date.month == today.month &&
         date.day == today.day);
   }
@@ -66,24 +66,29 @@ class Habit {
       'frequency': frequency.name,
       'currentStreak': currentStreak,
       'longestStreak': longestStreak,
+      // Firebase acepta listas de Strings para fechas sin problema
       'completedDates': completedDates.map((d) => d.toIso8601String()).toList(),
       'goal': goal,
     };
   }
 
-  factory Habit.fromJson(Map<String, dynamic> json) {
+  // Añadimos el documentId aquí
+  factory Habit.fromJson(Map<String, dynamic> json, String documentId) {
     return Habit(
-      id: json['id'],
-      name: json['name'],
-      icon: json['icon'],
-      color: Color(json['color']),
-      frequency: Frequency.values.firstWhere((e) => e.name == json['frequency']),
-      currentStreak: json['currentStreak'],
-      longestStreak: json['longestStreak'],
-      completedDates: (json['completedDates'] as List)
-          .map((d) => DateTime.parse(d))
-          .toList(),
-      goal: json['goal'],
+      id: documentId,
+      name: json['name'] ?? '',
+      icon: json['icon'] ?? '🎯',
+      color: Color(json['color'] ?? 0xFF3B82F6),
+      frequency: Frequency.values.firstWhere(
+              (e) => e.name == json['frequency'],
+          orElse: () => Frequency.daily
+      ),
+      currentStreak: json['currentStreak'] ?? 0,
+      longestStreak: json['longestStreak'] ?? 0,
+      completedDates: (json['completedDates'] as List?)
+          ?.map((d) => DateTime.parse(d as String))
+          .toList() ?? [],
+      goal: json['goal'] ?? 7,
     );
   }
 }

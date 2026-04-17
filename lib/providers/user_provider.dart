@@ -1,32 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Añadido para Firestore
 
-// Importamos tus modelos reales para las estadísticas
 import '../models/user_stats.dart';
 import '../models/achievement.dart';
 
-// Recuperamos los Enums que necesita tu DashboardScreen
 enum MoodType { happy, focused, tired, stressed }
 enum EnergyLevel { low, medium, high }
 
 class UserProvider with ChangeNotifier {
-
-  // ==========================================
-  // 1. LÓGICA DE FIREBASE Y GOOGLE (v7.2.0)
-  // ==========================================
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  // En v7+, GoogleSignIn es un Singleton obligatorio
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance; // Instancia de BD
+
   bool _isGoogleSignInInitialized = false;
 
   User? _user;
   User? get user => _user;
   bool get isAuthenticated => _user != null;
 
-  // ==========================================
-  // 2. LÓGICA DE INTERFAZ DEL DASHBOARD
-  // ==========================================
   String _userName = "Usuario";
   String get userName => _userName;
 
@@ -36,14 +29,14 @@ class UserProvider with ChangeNotifier {
   EnergyLevel _energyLevel = EnergyLevel.high;
   EnergyLevel get energyLevel => _energyLevel;
 
-  // Conectamos con tu clase UserStats
+  // Inicia en 0. Se actualizará automáticamente con Firebase.
   UserStats _stats = UserStats(
-    level: 12,
-    xp: 2840,
-    xpToNextLevel: 3500,
-    currentStreak: 7,
-    productivityScore: 87,
-    tasksCompleted: 45,
+    level: 0,
+    xp: 0,
+    xpToNextLevel: 1000,
+    currentStreak: 0,
+    productivityScore: 0,
+    tasksCompleted: 0,
   );
   UserStats get stats => _stats;
 
@@ -57,13 +50,67 @@ class UserProvider with ChangeNotifier {
     _initGoogleSignIn();
     _auth.authStateChanges().listen((User? user) {
       _user = user;
-      // Actualiza la interfaz con el nombre real de Firebase/Google si existe
-      if (user != null && user.displayName != null && user.displayName!.isNotEmpty) {
-        _userName = user.displayName!;
+      if (user != null) {
+        if (user.displayName != null && user.displayName!.isNotEmpty) {
+          _userName = user.displayName!;
+        }
+        // Empezamos a escuchar sus estadísticas reales
+        _listenToStats(user.uid);
       } else {
         _userName = "Usuario";
+        _stats = UserStats(level: 0, xp: 0, xpToNextLevel: 1000, currentStreak: 0, productivityScore: 0, tasksCompleted: 0);
+        notifyListeners();
+      }
+    });
+  }
+
+  // --- LÓGICA DE NIVEL Y EXPERIENCIA ---
+
+  void _listenToStats(String uid) {
+    _db.collection('users').doc(uid).collection('metadata').doc('stats')
+        .snapshots()
+        .listen((doc) async {
+      if (doc.exists) {
+        _stats = UserStats.fromJson(doc.data()!);
+      } else {
+        // Si el usuario es nuevo, creamos su perfil de estadísticas en 0
+        await _initializeStats(uid);
       }
       notifyListeners();
+    });
+  }
+
+  Future<void> _initializeStats(String uid) async {
+    final initialStats = UserStats(
+        level: 0,
+        xp: 0,
+        xpToNextLevel: 1000,
+        currentStreak: 0,
+        productivityScore: 0,
+        tasksCompleted: 0
+    );
+    await _db.collection('users').doc(uid).collection('metadata').doc('stats').set(initialStats.toJson());
+  }
+
+  Future<void> addExperience(int amount) async {
+    if (_user == null) return;
+
+    int newXp = _stats.xp + amount;
+    int newLevel = _stats.level;
+    int newXpToNext = _stats.xpToNextLevel;
+
+    // Lógica para subir de nivel
+    while (newXp >= newXpToNext) {
+      newXp -= newXpToNext;
+      newLevel++;
+      newXpToNext = (newXpToNext * 1.2).toInt(); // La dificultad aumenta un 20% cada nivel
+    }
+
+    await _db.collection('users').doc(_user!.uid).collection('metadata').doc('stats').update({
+      'xp': newXp,
+      'level': newLevel,
+      'xpToNextLevel': newXpToNext,
+      'tasksCompleted': FieldValue.increment(1),
     });
   }
 
@@ -80,11 +127,7 @@ class UserProvider with ChangeNotifier {
     return 'Buenas noches';
   }
 
-  // ==========================================
-  // 3. MÉTODOS DE AUTENTICACIÓN
-  // ==========================================
-
-  // En v7+ es obligatorio inicializar Google de forma asíncrona
+  // --- MÉTODOS DE AUTENTICACIÓN ---
   Future<void> _initGoogleSignIn() async {
     try {
       await _googleSignIn.initialize();
@@ -98,16 +141,12 @@ class UserProvider with ChangeNotifier {
     if (!_isGoogleSignInInitialized) await _initGoogleSignIn();
   }
 
-  // REGISTRO: Ahora recibe y guarda el nombre
   Future<String?> signUp(String email, String password, String name) async {
     try {
       UserCredential credential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
-
-      // Actualiza el perfil de Firebase con el nombre
       await credential.user?.updateDisplayName(name);
       _userName = name;
       notifyListeners();
-
       return null;
     } on FirebaseAuthException catch (e) {
       return e.message;
@@ -126,14 +165,12 @@ class UserProvider with ChangeNotifier {
   Future<String?> signInWithGoogle() async {
     await _ensureGoogleInitialized();
     try {
-      // En v7+ usamos authenticate() obligatoriamente
       final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate(
         scopeHint: ['email', 'profile'],
       );
 
       if (googleUser == null) return 'Inicio de sesión cancelado';
 
-      // En v7+ authentication es síncrona, y la autorización de scopes es separada
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
       final authorizedUser = await googleUser.authorizationClient.authorizeScopes(['email', 'profile']);
 

@@ -12,8 +12,6 @@ import 'package:producti_app/widgets/event_timeline_item.dart';
 import 'package:producti_app/screens/focus_mode_screen.dart';
 import 'package:producti_app/screens/settings_screen.dart';
 import 'package:intl/intl.dart';
-import 'package:producti_app/widgets/task_card.dart';
-import 'package:producti_app/theme/app_colors.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -27,7 +25,8 @@ class DashboardScreen extends StatelessWidget {
     final habitProvider = Provider.of<HabitProvider>(context);
 
     final todayTasks = taskProvider.todayTasks;
-    final completedToday = todayTasks.where((t) => t.completed).length;
+    // Tareas pendientes del día para los Quick Stats
+    final pendingTodayTasks = todayTasks.where((t) => !t.completed).length;
     final upcomingEvents = eventProvider.upcomingEvents.take(3).toList();
 
     return Container(
@@ -47,9 +46,9 @@ class DashboardScreen extends StatelessWidget {
             children: [
               // Header
               _buildHeader(context, userProvider, themeProvider),
-              
+
               const SizedBox(height: 24),
-              
+
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
@@ -57,44 +56,44 @@ class DashboardScreen extends StatelessWidget {
                   children: [
                     // Mood Selector
                     _buildMoodSelector(userProvider),
-                    
+
                     const SizedBox(height: 24),
-                    
-                    // Quick Stats
-                    _buildQuickStats(userProvider, todayTasks.length, habitProvider),
-                    
+
+                    // Quick Stats (AQUÍ LE PASAMOS LOS DATOS REALES DE HÁBITOS)
+                    _buildQuickStats(userProvider, pendingTodayTasks, habitProvider),
+
                     const SizedBox(height: 24),
-                    
+
                     // Focus Mode Suggestion
                     if (userProvider.energyLevel == EnergyLevel.high &&
                         userProvider.currentMood == MoodType.focused)
                       _buildFocusSuggestion(context),
-                    
+
                     if (userProvider.energyLevel == EnergyLevel.high &&
                         userProvider.currentMood == MoodType.focused)
                       const SizedBox(height: 24),
-                    
+
                     // Today's Tasks
                     _buildSectionHeader('Tareas de Hoy', () {
                       // Navigate to tasks screen
                     }),
-                    
+
                     const SizedBox(height: 12),
-                    
+
                     ...todayTasks.take(3).map((task) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: TaskCard(task: task),
                     )),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Timeline del Día
                     _buildSectionHeader('Timeline del Día', () {
                       // Navigate to calendar
                     }),
-                    
+
                     const SizedBox(height: 12),
-                    
+
                     if (upcomingEvents.isEmpty)
                       const Text('No hay eventos próximos')
                     else
@@ -111,18 +110,18 @@ class DashboardScreen extends StatelessWidget {
                           ),
                         ),
                       ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Habits Quick View
                     _buildSectionHeader('Hábitos de Hoy', () {
                       // Navigate to habits
                     }),
-                    
+
                     const SizedBox(height: 12),
-                    
+
                     _buildHabitsQuickView(habitProvider),
-                    
+
                     const SizedBox(height: 100),
                   ],
                 ),
@@ -140,11 +139,11 @@ class DashboardScreen extends StatelessWidget {
     final dateStr = DateFormat('EEEE, d \'de\' MMMM yyyy', 'es').format(now);
 
     return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
           colors: AppColors.blueGradient,
         ),
-        borderRadius: const BorderRadius.only(
+        borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(24),
           bottomRight: Radius.circular(24),
         ),
@@ -201,10 +200,10 @@ class DashboardScreen extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 16),
-          
-          // Level Progress
+
+          // Level Progress (AHORA ES DINÁMICO)
           Card(
             color: Colors.white.withOpacity(0.1),
             elevation: 0,
@@ -241,7 +240,8 @@ class DashboardScreen extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: LinearProgressIndicator(
-                      value: stats.xp / stats.xpToNextLevel,
+                      // Evitamos división por cero si xpToNextLevel es 0
+                      value: stats.xpToNextLevel > 0 ? (stats.xp / stats.xpToNextLevel) : 0.0,
                       backgroundColor: Colors.white.withOpacity(0.3),
                       valueColor: const AlwaysStoppedAnimation<Color>(Colors.yellow),
                       minHeight: 8,
@@ -288,7 +288,7 @@ class DashboardScreen extends StatelessWidget {
                         width: 2,
                       ),
                       borderRadius: BorderRadius.circular(16),
-                      color: isSelected 
+                      color: isSelected
                           ? AppColors.blue.withOpacity(0.1)
                           : Colors.transparent,
                     ),
@@ -319,16 +319,15 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickStats(UserProvider userProvider, int todayTasksCount, HabitProvider habitProvider) {
-    final stats = userProvider.stats;
-    
+  Widget _buildQuickStats(UserProvider userProvider, int pendingTasks, HabitProvider habitProvider) {
+    // Tomamos la racha y productividad real de los hábitos
     return Row(
       children: [
         Expanded(
           child: StatCard(
             gradient: AppColors.greenGradient,
             icon: Icons.local_fire_department,
-            value: '${stats.currentStreak}',
+            value: '${habitProvider.bestStreak}',
             label: 'Días racha',
           ),
         ),
@@ -337,7 +336,7 @@ class DashboardScreen extends StatelessWidget {
           child: StatCard(
             gradient: AppColors.purpleGradient,
             icon: Icons.trending_up,
-            value: '${stats.productivityScore}%',
+            value: '${habitProvider.completionRate.toInt()}%',
             label: 'Productividad',
           ),
         ),
@@ -346,7 +345,7 @@ class DashboardScreen extends StatelessWidget {
           child: StatCard(
             gradient: AppColors.orangeGradient,
             icon: Icons.access_time,
-            value: '$todayTasksCount',
+            value: '$pendingTasks',
             label: 'Tareas hoy',
           ),
         ),
@@ -437,7 +436,7 @@ class DashboardScreen extends StatelessWidget {
 
   Widget _buildHabitsQuickView(HabitProvider habitProvider) {
     final habits = habitProvider.habits.take(4).toList();
-    
+
     return Row(
       children: habits.map((habit) {
         return Expanded(

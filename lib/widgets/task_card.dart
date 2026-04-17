@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:producti_app/models/task.dart';
 import 'package:producti_app/providers/task_provider.dart';
+import 'package:producti_app/providers/user_provider.dart'; // Añadido para el Nivel
 import 'package:producti_app/theme/app_colors.dart';
 import 'package:intl/intl.dart';
-
 
 class TaskCard extends StatelessWidget {
   final Task task;
@@ -35,14 +35,23 @@ class TaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final taskProvider = Provider.of<TaskProvider>(context);
-
     return Card(
       elevation: task.completed ? 1 : 2,
       child: Opacity(
         opacity: task.completed ? 0.6 : 1.0,
         child: InkWell(
-          onTap: () => taskProvider.toggleTaskComplete(task.id),
+          onTap: () {
+            final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+            final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+            // Si la tarea se está marcando como completada (NO desmarcando) le damos XP
+            if (!task.completed) {
+              userProvider.addExperience(50);
+            }
+
+            // Cambiamos el estado de la tarea en la BD
+            taskProvider.toggleTaskComplete(task.id);
+          },
           borderRadius: BorderRadius.circular(12),
           child: Container(
             decoration: BoxDecoration(
