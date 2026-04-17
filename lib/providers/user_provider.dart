@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Añadido para Firestore
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/user_stats.dart';
 import '../models/achievement.dart';
@@ -12,7 +12,7 @@ enum EnergyLevel { low, medium, high }
 class UserProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
-  final FirebaseFirestore _db = FirebaseFirestore.instance; // Instancia de BD
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   bool _isGoogleSignInInitialized = false;
 
@@ -29,11 +29,10 @@ class UserProvider with ChangeNotifier {
   EnergyLevel _energyLevel = EnergyLevel.high;
   EnergyLevel get energyLevel => _energyLevel;
 
-  // Inicia en 0. Se actualizará automáticamente con Firebase.
   UserStats _stats = UserStats(
     level: 0,
     xp: 0,
-    xpToNextLevel: 1000,
+    xpToNextLevel: 100,
     currentStreak: 0,
     productivityScore: 0,
     tasksCompleted: 0,
@@ -54,17 +53,14 @@ class UserProvider with ChangeNotifier {
         if (user.displayName != null && user.displayName!.isNotEmpty) {
           _userName = user.displayName!;
         }
-        // Empezamos a escuchar sus estadísticas reales
         _listenToStats(user.uid);
       } else {
         _userName = "Usuario";
-        _stats = UserStats(level: 0, xp: 0, xpToNextLevel: 1000, currentStreak: 0, productivityScore: 0, tasksCompleted: 0);
+        _stats = UserStats(level: 0, xp: 0, xpToNextLevel: 100, currentStreak: 0, productivityScore: 0, tasksCompleted: 0);
         notifyListeners();
       }
     });
   }
-
-  // --- LÓGICA DE NIVEL Y EXPERIENCIA ---
 
   void _listenToStats(String uid) {
     _db.collection('users').doc(uid).collection('metadata').doc('stats')
@@ -73,7 +69,6 @@ class UserProvider with ChangeNotifier {
       if (doc.exists) {
         _stats = UserStats.fromJson(doc.data()!);
       } else {
-        // Si el usuario es nuevo, creamos su perfil de estadísticas en 0
         await _initializeStats(uid);
       }
       notifyListeners();
@@ -82,16 +77,18 @@ class UserProvider with ChangeNotifier {
 
   Future<void> _initializeStats(String uid) async {
     final initialStats = UserStats(
-        level: 0,
-        xp: 0,
-        xpToNextLevel: 1000,
-        currentStreak: 0,
-        productivityScore: 0,
-        tasksCompleted: 0
+      level: 0,
+      xp: 0,
+      xpToNextLevel: 100,
+      currentStreak: 0,
+      productivityScore: 0,
+      tasksCompleted: 0,
+      lastActiveDate: null,
     );
     await _db.collection('users').doc(uid).collection('metadata').doc('stats').set(initialStats.toJson());
   }
 
+  // --- EL CORAZÓN DE TU SISTEMA: EXPERIENCIA Y RACHA ---
   Future<void> addExperience(int amount) async {
     if (_user == null) return;
 
@@ -99,11 +96,39 @@ class UserProvider with ChangeNotifier {
     int newLevel = _stats.level;
     int newXpToNext = _stats.xpToNextLevel;
 
-    // Lógica para subir de nivel
+    // Sube de nivel si es necesario
     while (newXp >= newXpToNext) {
       newXp -= newXpToNext;
       newLevel++;
-      newXpToNext = (newXpToNext * 1.2).toInt(); // La dificultad aumenta un 20% cada nivel
+
+      if (newLevel == 1) newXpToNext = 250;
+      else if (newLevel == 2) newXpToNext = 500;
+      else if (newLevel == 3) newXpToNext = 1000;
+      else newXpToNext = (newXpToNext * 1.3).toInt();
+    }
+
+    // ACTUALIZACIÓN DE RACHA DIARIA
+    // Obtenemos la fecha de hoy en formato "YYYY-MM-DD"
+    final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+    int newStreak = _stats.currentStreak;
+    String? newLastActive = _stats.lastActiveDate;
+
+    // Si la última actividad no fue hoy...
+    if (_stats.lastActiveDate != todayStr) {
+      if (_stats.lastActiveDate != null) {
+        final lastDate = DateTime.parse(_stats.lastActiveDate!);
+        final todayDate = DateTime.parse(todayStr);
+        final diff = todayDate.difference(lastDate).inDays;
+
+        if (diff == 1) {
+          newStreak++; // Fue ayer, la racha aumenta
+        } else if (diff > 1) {
+          newStreak = 1; // Faltaste un día, la racha se reinicia
+        }
+      } else {
+        newStreak = 1; // Es la primera vez que completas algo
+      }
+      newLastActive = todayStr; // Marcamos hoy como el último día activo
     }
 
     await _db.collection('users').doc(_user!.uid).collection('metadata').doc('stats').update({
@@ -111,10 +136,11 @@ class UserProvider with ChangeNotifier {
       'level': newLevel,
       'xpToNextLevel': newXpToNext,
       'tasksCompleted': FieldValue.increment(1),
+      'currentStreak': newStreak,
+      'lastActiveDate': newLastActive,
     });
   }
 
-  // --- MÉTODOS DEL DASHBOARD ---
   void setMood(MoodType mood) {
     _currentMood = mood;
     notifyListeners();
@@ -127,7 +153,6 @@ class UserProvider with ChangeNotifier {
     return 'Buenas noches';
   }
 
-  // --- MÉTODOS DE AUTENTICACIÓN ---
   Future<void> _initGoogleSignIn() async {
     try {
       await _googleSignIn.initialize();

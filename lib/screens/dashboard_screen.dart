@@ -25,8 +25,6 @@ class DashboardScreen extends StatelessWidget {
     final habitProvider = Provider.of<HabitProvider>(context);
 
     final todayTasks = taskProvider.todayTasks;
-    // Tareas pendientes del día para los Quick Stats
-    final pendingTodayTasks = todayTasks.where((t) => !t.completed).length;
     final upcomingEvents = eventProvider.upcomingEvents.take(3).toList();
 
     return Container(
@@ -44,56 +42,35 @@ class DashboardScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
               _buildHeader(context, userProvider, themeProvider),
-
               const SizedBox(height: 24),
-
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Mood Selector
                     _buildMoodSelector(userProvider),
-
                     const SizedBox(height: 24),
 
-                    // Quick Stats (AQUÍ LE PASAMOS LOS DATOS REALES DE HÁBITOS)
-                    _buildQuickStats(userProvider, pendingTodayTasks, habitProvider),
+                    // AHORA LE PASAMOS LOS PROVIDERS PARA CALCULAR TODO
+                    _buildQuickStats(userProvider, taskProvider, habitProvider),
 
                     const SizedBox(height: 24),
-
-                    // Focus Mode Suggestion
                     if (userProvider.energyLevel == EnergyLevel.high &&
                         userProvider.currentMood == MoodType.focused)
                       _buildFocusSuggestion(context),
-
                     if (userProvider.energyLevel == EnergyLevel.high &&
                         userProvider.currentMood == MoodType.focused)
                       const SizedBox(height: 24),
-
-                    // Today's Tasks
-                    _buildSectionHeader('Tareas de Hoy', () {
-                      // Navigate to tasks screen
-                    }),
-
+                    _buildSectionHeader('Tareas de Hoy', () {}),
                     const SizedBox(height: 12),
-
                     ...todayTasks.take(3).map((task) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: TaskCard(task: task),
                     )),
-
                     const SizedBox(height: 24),
-
-                    // Timeline del Día
-                    _buildSectionHeader('Timeline del Día', () {
-                      // Navigate to calendar
-                    }),
-
+                    _buildSectionHeader('Timeline del Día', () {}),
                     const SizedBox(height: 12),
-
                     if (upcomingEvents.isEmpty)
                       const Text('No hay eventos próximos')
                     else
@@ -110,18 +87,10 @@ class DashboardScreen extends StatelessWidget {
                           ),
                         ),
                       ),
-
                     const SizedBox(height: 24),
-
-                    // Habits Quick View
-                    _buildSectionHeader('Hábitos de Hoy', () {
-                      // Navigate to habits
-                    }),
-
+                    _buildSectionHeader('Hábitos de Hoy', () {}),
                     const SizedBox(height: 12),
-
                     _buildHabitsQuickView(habitProvider),
-
                     const SizedBox(height: 100),
                   ],
                 ),
@@ -140,13 +109,8 @@ class DashboardScreen extends StatelessWidget {
 
     return Container(
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: AppColors.blueGradient,
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
+        gradient: LinearGradient(colors: AppColors.blueGradient),
+        borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
       ),
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -161,20 +125,10 @@ class DashboardScreen extends StatelessWidget {
                   children: [
                     Text(
                       '${userProvider.getGreeting()}, ${userProvider.userName}',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      dateStr,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white.withOpacity(0.9),
-                      ),
-                    ),
+                    Text(dateStr, style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.9))),
                   ],
                 ),
               ),
@@ -182,17 +136,11 @@ class DashboardScreen extends StatelessWidget {
                 children: [
                   IconButton(
                     onPressed: () => themeProvider.toggleTheme(),
-                    icon: Icon(
-                      themeProvider.isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                      color: Colors.white,
-                    ),
+                    icon: Icon(themeProvider.isDarkMode ? Icons.light_mode : Icons.dark_mode, color: Colors.white),
                   ),
                   IconButton(
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                      );
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
                     },
                     icon: const Icon(Icons.settings, color: Colors.white),
                   ),
@@ -200,10 +148,7 @@ class DashboardScreen extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 16),
-
-          // Level Progress (AHORA ES DINÁMICO)
           Card(
             color: Colors.white.withOpacity(0.1),
             elevation: 0,
@@ -218,29 +163,16 @@ class DashboardScreen extends StatelessWidget {
                         children: [
                           const Icon(Icons.bolt, color: Colors.yellow, size: 20),
                           const SizedBox(width: 8),
-                          Text(
-                            'Nivel ${stats.level}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          Text('Nivel ${stats.level}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                         ],
                       ),
-                      Text(
-                        '${stats.xp} / ${stats.xpToNextLevel} XP',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
-                      ),
+                      Text('${stats.xp} / ${stats.xpToNextLevel} XP', style: const TextStyle(color: Colors.white, fontSize: 12)),
                     ],
                   ),
                   const SizedBox(height: 8),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: LinearProgressIndicator(
-                      // Evitamos división por cero si xpToNextLevel es 0
                       value: stats.xpToNextLevel > 0 ? (stats.xp / stats.xpToNextLevel) : 0.0,
                       backgroundColor: Colors.white.withOpacity(0.3),
                       valueColor: const AlwaysStoppedAnimation<Color>(Colors.yellow),
@@ -267,10 +199,7 @@ class DashboardScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '¿Cómo te sientes hoy?',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
+        const Text('¿Cómo te sientes hoy?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
         Row(
           children: moods.map((mood) {
@@ -283,30 +212,15 @@ class DashboardScreen extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      border: Border.all(
-                        color: isSelected ? AppColors.blue : Colors.grey.shade300,
-                        width: 2,
-                      ),
+                      border: Border.all(color: isSelected ? AppColors.blue : Colors.grey.shade300, width: 2),
                       borderRadius: BorderRadius.circular(16),
-                      color: isSelected
-                          ? AppColors.blue.withOpacity(0.1)
-                          : Colors.transparent,
+                      color: isSelected ? AppColors.blue.withOpacity(0.1) : Colors.transparent,
                     ),
                     child: Column(
                       children: [
-                        Text(
-                          mood['icon'] as String,
-                          style: const TextStyle(fontSize: 28),
-                        ),
+                        Text(mood['icon'] as String, style: const TextStyle(fontSize: 28)),
                         const SizedBox(height: 4),
-                        Text(
-                          mood['label'] as String,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
+                        Text(mood['label'] as String, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500), textAlign: TextAlign.center),
                       ],
                     ),
                   ),
@@ -319,15 +233,29 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickStats(UserProvider userProvider, int pendingTasks, HabitProvider habitProvider) {
-    // Tomamos la racha y productividad real de los hábitos
+  // --- LA NUEVA FÓRMULA DE PRODUCTIVIDAD Y RACHA ---
+  Widget _buildQuickStats(UserProvider userProvider, TaskProvider taskProvider, HabitProvider habitProvider) {
+    // 1. Tareas
+    final todayTasks = taskProvider.todayTasks;
+    final completedTasks = todayTasks.where((t) => t.completed).length;
+    final pendingTasks = todayTasks.length - completedTasks;
+
+    // 2. Hábitos
+    final totalHabits = habitProvider.habits.length;
+    final completedHabits = habitProvider.completedToday;
+
+    // 3. Fusión de Productividad
+    final totalActivities = todayTasks.length + totalHabits;
+    final completedActivities = completedTasks + completedHabits;
+    final productivityScore = totalActivities == 0 ? 0 : ((completedActivities / totalActivities) * 100).toInt();
+
     return Row(
       children: [
         Expanded(
           child: StatCard(
             gradient: AppColors.greenGradient,
             icon: Icons.local_fire_department,
-            value: '${habitProvider.bestStreak}',
+            value: '${userProvider.stats.currentStreak}', // LA RACHA GLOBAL
             label: 'Días racha',
           ),
         ),
@@ -336,7 +264,7 @@ class DashboardScreen extends StatelessWidget {
           child: StatCard(
             gradient: AppColors.purpleGradient,
             icon: Icons.trending_up,
-            value: '${habitProvider.completionRate.toInt()}%',
+            value: '$productivityScore%', // PRODUCTIVIDAD REAL TAREAS+HÁBITOS
             label: 'Productividad',
           ),
         ),
@@ -355,21 +283,13 @@ class DashboardScreen extends StatelessWidget {
 
   Widget _buildFocusSuggestion(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: AppColors.indigoGradient,
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
+      decoration: BoxDecoration(gradient: const LinearGradient(colors: AppColors.indigoGradient), borderRadius: BorderRadius.circular(16)),
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
             child: const Icon(Icons.bolt, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 12),
@@ -377,35 +297,16 @@ class DashboardScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '¡Estás muy enfocado!',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                Text(
-                  'Activa el modo enfoque',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                  ),
-                ),
+                Text('¡Estás muy enfocado!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                Text('Activa el modo enfoque', style: TextStyle(color: Colors.white, fontSize: 14)),
               ],
             ),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const FocusModeScreen()),
-              );
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const FocusModeScreen()));
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: AppColors.indigo,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: AppColors.indigo),
             child: const Text('Activar'),
           ),
         ],
@@ -417,18 +318,10 @@ class DashboardScreen extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
+        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         TextButton(
           onPressed: onTap,
-          child: const Row(
-            children: [
-              Text('Ver todas'),
-              Icon(Icons.chevron_right, size: 20),
-            ],
-          ),
+          child: const Row(children: [Text('Ver todas'), Icon(Icons.chevron_right, size: 20)]),
         ),
       ],
     );
@@ -436,7 +329,6 @@ class DashboardScreen extends StatelessWidget {
 
   Widget _buildHabitsQuickView(HabitProvider habitProvider) {
     final habits = habitProvider.habits.take(4).toList();
-
     return Row(
       children: habits.map((habit) {
         return Expanded(
@@ -445,37 +337,17 @@ class DashboardScreen extends StatelessWidget {
             child: Card(
               child: Container(
                 decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: habit.color, width: 3),
-                  ),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
-                  ),
+                  border: Border(top: BorderSide(color: habit.color, width: 3)),
+                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
                 ),
                 padding: const EdgeInsets.all(12),
                 child: Column(
                   children: [
                     Text(habit.icon, style: const TextStyle(fontSize: 28)),
                     const SizedBox(height: 8),
-                    Text(
-                      habit.name,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    Text(habit.name, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 4),
-                    Text(
-                      '${habit.currentStreak} días',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
+                    Text('${habit.currentStreak} días', style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
                   ],
                 ),
               ),

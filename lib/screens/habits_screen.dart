@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:producti_app/providers/habit_provider.dart';
+import 'package:producti_app/providers/user_provider.dart'; // <- NUEVA IMPORTACIÓN
 import 'package:producti_app/models/habit.dart';
 import 'package:producti_app/theme/app_colors.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -13,64 +14,37 @@ class HabitsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final habitProvider = Provider.of<HabitProvider>(context);
     final habits = habitProvider.habits;
-    final activityData = habitProvider.weeklyActivity; // Datos reales para el gráfico
+    final activityData = habitProvider.weeklyActivity;
 
     return Scaffold(
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            // Header with Stats
             SliverToBoxAdapter(
               child: Container(
                 decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: AppColors.purpleGradient,
-                  ),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(24),
-                    bottomRight: Radius.circular(24),
-                  ),
+                  gradient: LinearGradient(colors: AppColors.purpleGradient),
+                  borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
                 ),
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Mis Hábitos',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
+                    const Text('Mis Hábitos', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
                     const SizedBox(height: 24),
                     Row(
                       children: [
-                        _buildStatBox(
-                          'Mejor Racha',
-                          habitProvider.bestStreak.toString(),
-                          Icons.local_fire_department,
-                        ),
+                        _buildStatBox('Mejor Racha', habitProvider.bestStreak.toString(), Icons.local_fire_department),
                         const SizedBox(width: 12),
-                        _buildStatBox(
-                          'Hoy',
-                          '${habitProvider.completedToday}/${habits.length}',
-                          Icons.check_circle,
-                        ),
+                        _buildStatBox('Hoy', '${habitProvider.completedToday}/${habits.length}', Icons.check_circle),
                         const SizedBox(width: 12),
-                        _buildStatBox(
-                          'Tasa',
-                          '${habitProvider.completionRate.toStringAsFixed(0)}%',
-                          Icons.trending_up,
-                        ),
+                        _buildStatBox('Tasa', '${habitProvider.completionRate.toStringAsFixed(0)}%', Icons.trending_up),
                       ],
                     ),
                   ],
                 ),
               ),
             ),
-
-            // Weekly Chart con datos reales
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -80,26 +54,15 @@ class HabitsScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Actividad Semanal',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        const Text('Actividad Semanal', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 16),
-                        SizedBox(
-                          height: 150,
-                          child: _buildWeeklyChart(activityData),
-                        ),
+                        SizedBox(height: 150, child: _buildWeeklyChart(activityData)),
                       ],
                     ),
                   ),
                 ),
               ),
             ),
-
-            // Habits List
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               sliver: SliverList(
@@ -115,18 +78,13 @@ class HabitsScreen extends StatelessWidget {
                 ),
               ),
             ),
-
             const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Navegar a la pantalla de crear hábito
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => AddHabitScreen()),
-          );
+          Navigator.push(context, MaterialPageRoute(builder: (context) => AddHabitScreen()));
         },
         child: const Icon(Icons.add),
       ),
@@ -137,29 +95,13 @@ class HabitsScreen extends StatelessWidget {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(12),
-        ),
+        decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
         child: Column(
           children: [
             Icon(icon, color: Colors.white, size: 20),
             const SizedBox(height: 4),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 10,
-                color: Colors.white70,
-              ),
-            ),
+            Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+            Text(label, style: const TextStyle(fontSize: 10, color: Colors.white70)),
           ],
         ),
       ),
@@ -169,14 +111,11 @@ class HabitsScreen extends StatelessWidget {
   Widget _buildWeeklyChart(List<int> activity) {
     final now = DateTime.now();
     final dayNames = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
-
-    // Generar etiquetas dinámicas para que el último día sea siempre "hoy"
     final labels = List.generate(7, (i) {
       final date = now.subtract(Duration(days: 6 - i));
       return dayNames[date.weekday - 1];
     });
 
-    // Calcular el máximo de Y para que el gráfico no se vea vacío si hay pocos hábitos
     double maxScaleY = 5;
     if (activity.isNotEmpty) {
       final maxActivity = activity.reduce((a, b) => a > b ? a : b);
@@ -195,25 +134,14 @@ class HabitsScreen extends StatelessWidget {
               showTitles: true,
               getTitlesWidget: (value, meta) {
                 int index = value.toInt();
-                if (index >= 0 && index < labels.length) {
-                  return Text(
-                    labels[index],
-                    style: const TextStyle(fontSize: 12),
-                  );
-                }
+                if (index >= 0 && index < labels.length) return Text(labels[index], style: const TextStyle(fontSize: 12));
                 return const Text('');
               },
             ),
           ),
-          leftTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          topTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          rightTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
+          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
         gridData: const FlGridData(show: false),
         borderData: FlBorderData(show: false),
@@ -225,10 +153,7 @@ class HabitsScreen extends StatelessWidget {
                 toY: entry.value.toDouble(),
                 color: AppColors.purple,
                 width: 24,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(6),
-                  topRight: Radius.circular(6),
-                ),
+                borderRadius: const BorderRadius.only(topLeft: Radius.circular(6), topRight: Radius.circular(6)),
               ),
             ],
           );
@@ -241,14 +166,21 @@ class HabitsScreen extends StatelessWidget {
     final isCompleted = habit.isCompletedToday();
     final progress = habit.currentStreak / habit.goal;
 
+    // Obtenemos el UserProvider para dar XP
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+
     return InkWell(
-      onTap: () => provider.toggleHabitCompletion(habit.id),
+      onTap: () {
+        // Si no estaba completado, al completarlo damos 20 XP (y actualizamos la racha global)
+        if (!isCompleted) {
+          userProvider.addExperience(20);
+        }
+        provider.toggleHabitCompletion(habit.id);
+      },
       child: Card(
         child: Container(
           decoration: BoxDecoration(
-            border: Border(
-              left: BorderSide(color: habit.color, width: 4),
-            ),
+            border: Border(left: BorderSide(color: habit.color, width: 4)),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Padding(
@@ -264,13 +196,9 @@ class HabitsScreen extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: habit.color.withOpacity(0.2),
                         shape: BoxShape.circle,
-                        border: isCompleted
-                            ? Border.all(color: AppColors.green, width: 3)
-                            : null,
+                        border: isCompleted ? Border.all(color: AppColors.green, width: 3) : null,
                       ),
-                      child: Center(
-                        child: Text(habit.icon, style: const TextStyle(fontSize: 24)),
-                      ),
+                      child: Center(child: Text(habit.icon, style: const TextStyle(fontSize: 24))),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -279,48 +207,22 @@ class HabitsScreen extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              Text(
-                                habit.name,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                              Text(habit.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                               const SizedBox(width: 8),
                               if (isCompleted)
                                 Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.green.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Text(
-                                    'Completado',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: AppColors.green,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(color: AppColors.green.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                                  child: const Text('Completado', style: TextStyle(fontSize: 10, color: AppColors.green, fontWeight: FontWeight.bold)),
                                 ),
                             ],
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            '${habit.frequency == Frequency.daily ? "Diario" : "Semanal"} • Racha: ${habit.currentStreak} días',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
+                          Text('${habit.frequency == Frequency.daily ? "Diario" : "Semanal"} • Racha: ${habit.currentStreak} días', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                         ],
                       ),
                     ),
-                    if (isCompleted)
-                      const Icon(Icons.check_circle, color: AppColors.green, size: 28),
+                    if (isCompleted) const Icon(Icons.check_circle, color: AppColors.green, size: 28),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -338,13 +240,7 @@ class HabitsScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Text(
-                      '${habit.currentStreak}/${habit.goal}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    Text('${habit.currentStreak}/${habit.goal}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ],

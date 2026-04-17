@@ -5,6 +5,7 @@ class UserStats {
   final int currentStreak;
   final int productivityScore;
   final int tasksCompleted;
+  final String? lastActiveDate; // <- NUEVO CAMPO PARA LA RACHA
 
   UserStats({
     required this.level,
@@ -13,6 +14,7 @@ class UserStats {
     required this.currentStreak,
     required this.productivityScore,
     required this.tasksCompleted,
+    this.lastActiveDate,
   });
 
   Map<String, dynamic> toJson() {
@@ -23,6 +25,7 @@ class UserStats {
       'currentStreak': currentStreak,
       'productivityScore': productivityScore,
       'tasksCompleted': tasksCompleted,
+      'lastActiveDate': lastActiveDate,
     };
   }
 
@@ -30,10 +33,11 @@ class UserStats {
     return UserStats(
       level: json['level'] ?? 0,
       xp: json['xp'] ?? 0,
-      xpToNextLevel: json['xpToNextLevel'] ?? 1000,
+      xpToNextLevel: json['xpToNextLevel'] ?? 100,
       currentStreak: json['currentStreak'] ?? 0,
       productivityScore: json['productivityScore'] ?? 0,
       tasksCompleted: json['tasksCompleted'] ?? 0,
+      lastActiveDate: json['lastActiveDate'], // <- LEEMOS EL NUEVO CAMPO
     );
   }
 }
