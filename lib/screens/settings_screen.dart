@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:producti_app/providers/theme_provider.dart';
+import 'package:producti_app/providers/user_provider.dart'; // Importado para Logout y Datos
 import 'package:producti_app/theme/app_colors.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -9,6 +10,7 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final userProvider = Provider.of<UserProvider>(context); // Obtenemos el Provider del usuario
 
     return Scaffold(
       appBar: AppBar(
@@ -16,15 +18,15 @@ class SettingsScreen extends StatelessWidget {
       ),
       body: ListView(
         children: [
-          // Profile Card
+          // Profile Card - Ahora con datos dinámicos de Firebase
           Card(
             margin: const EdgeInsets.all(16),
             child: ListTile(
               leading: const CircleAvatar(
                 child: Icon(Icons.person),
               ),
-              title: const Text('Usuario'),
-              subtitle: const Text('usuario@example.com'),
+              title: Text(userProvider.userName), // Nombre real
+              subtitle: Text(userProvider.user?.email ?? 'Sin correo vinculado'), // Correo real
               trailing: const Icon(Icons.edit),
               onTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -196,10 +198,9 @@ class SettingsScreen extends StatelessWidget {
                       ),
                       ElevatedButton(
                         onPressed: () {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Sesión cerrada')),
-                          );
+                          Navigator.pop(context); // Cierra el diálogo
+                          // Llama a la función de Firebase para desloguear
+                          Provider.of<UserProvider>(context, listen: false).logout();
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.red,

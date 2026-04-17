@@ -4,6 +4,7 @@ import 'package:producti_app/providers/task_provider.dart';
 import 'package:producti_app/models/task.dart';
 import 'package:producti_app/widgets/task_card.dart';
 import 'package:producti_app/theme/app_colors.dart';
+import 'package:producti_app/screens/add_task_screen.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -158,9 +159,10 @@ class _TasksScreenState extends State<TasksScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // TODO: Navigate to add task screen
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Función de crear tarea próximamente')),
+          // Abre la nueva pantalla para crear tareas reales
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => AddTaskScreen()),
           );
         },
         child: const Icon(Icons.add),
@@ -218,11 +220,11 @@ class _TasksScreenState extends State<TasksScreen> {
           Icon(Icons.check_circle_outline, size: 64, color: Colors.grey.shade300),
           const SizedBox(height: 16),
           Text(
-            'No hay tareas',
+            'No hay tareas para hoy',
             style: TextStyle(
               fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey.shade600,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
             ),
           ),
           const SizedBox(height: 8),

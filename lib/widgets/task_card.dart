@@ -5,6 +5,7 @@ import 'package:producti_app/providers/task_provider.dart';
 import 'package:producti_app/theme/app_colors.dart';
 import 'package:intl/intl.dart';
 
+
 class TaskCard extends StatelessWidget {
   final Task task;
 

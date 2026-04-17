@@ -1,126 +1,160 @@
 import 'package:flutter/material.dart';
-import 'package:producti_app/models/user_stats.dart';
-import 'package:producti_app/models/achievement.dart';
-import 'package:producti_app/data/mock_data.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
-enum MoodType { happy, focused, tired, stressed, neutral }
-enum EnergyLevel { high, medium, low }
+// Importamos tus modelos reales para las estadísticas
+import '../models/user_stats.dart';
+import '../models/achievement.dart';
 
-class UserProvider extends ChangeNotifier {
-  UserStats _stats = MockData.mockUserStats;
-  List<Achievement> _achievements = [];
-  MoodType _currentMood = MoodType.focused;
-  EnergyLevel _energyLevel = EnergyLevel.high;
-  String _userName = 'Usuario';
+// Recuperamos los Enums que necesita tu DashboardScreen
+enum MoodType { happy, focused, tired, stressed }
+enum EnergyLevel { low, medium, high }
 
-  UserProvider() {
-    _achievements = List.from(MockData.mockAchievements);
-  }
+class UserProvider with ChangeNotifier {
 
-  UserStats get stats => _stats;
-  List<Achievement> get achievements => _achievements;
-  MoodType get currentMood => _currentMood;
-  EnergyLevel get energyLevel => _energyLevel;
+  // ==========================================
+  // 1. LÓGICA DE FIREBASE Y GOOGLE (v7.2.0)
+  // ==========================================
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  // En v7+, GoogleSignIn es un Singleton obligatorio
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  bool _isGoogleSignInInitialized = false;
+
+  User? _user;
+  User? get user => _user;
+  bool get isAuthenticated => _user != null;
+
+  // ==========================================
+  // 2. LÓGICA DE INTERFAZ DEL DASHBOARD
+  // ==========================================
+  String _userName = "Usuario";
   String get userName => _userName;
 
-  List<Achievement> get unlockedAchievements {
-    return _achievements.where((a) => a.unlocked).toList();
+  MoodType _currentMood = MoodType.happy;
+  MoodType get currentMood => _currentMood;
+
+  EnergyLevel _energyLevel = EnergyLevel.high;
+  EnergyLevel get energyLevel => _energyLevel;
+
+  // Conectamos con tu clase UserStats
+  UserStats _stats = UserStats(
+    level: 12,
+    xp: 2840,
+    xpToNextLevel: 3500,
+    currentStreak: 7,
+    productivityScore: 87,
+    tasksCompleted: 45,
+  );
+  UserStats get stats => _stats;
+
+  List<Achievement> _unlockedAchievements = [];
+  List<Achievement> get unlockedAchievements => _unlockedAchievements;
+
+  List<Achievement> _inProgressAchievements = [];
+  List<Achievement> get inProgressAchievements => _inProgressAchievements;
+
+  UserProvider() {
+    _initGoogleSignIn();
+    _auth.authStateChanges().listen((User? user) {
+      _user = user;
+      // Actualiza la interfaz con el nombre real de Firebase/Google si existe
+      if (user != null && user.displayName != null && user.displayName!.isNotEmpty) {
+        _userName = user.displayName!;
+      } else {
+        _userName = "Usuario";
+      }
+      notifyListeners();
+    });
   }
 
-  List<Achievement> get inProgressAchievements {
-    return _achievements.where((a) => !a.unlocked && a.progress != null).toList();
-  }
-
-  void updateStats(UserStats stats) {
-    _stats = stats;
-    notifyListeners();
-  }
-
-  void addXP(int xp) {
-    int newXP = _stats.xp + xp;
-    int newLevel = _stats.level;
-    int xpToNext = _stats.xpToNextLevel;
-
-    // Check for level up
-    while (newXP >= xpToNext) {
-      newXP -= xpToNext;
-      newLevel++;
-      xpToNext = _calculateXPForNextLevel(newLevel);
-    }
-
-    _stats = _stats.copyWith(
-      xp: newXP,
-      level: newLevel,
-      xpToNextLevel: xpToNext,
-    );
-    notifyListeners();
-  }
-
-  int _calculateXPForNextLevel(int level) {
-    // Formula: base XP * level multiplier
-    return (500 + (level * 250)).toInt();
-  }
-
-  void completeTask() {
-    _stats = _stats.copyWith(
-      tasksCompleted: _stats.tasksCompleted + 1,
-    );
-    addXP(10); // 10 XP per task
-    _checkAchievements();
-  }
-
-  void updateStreak(int streak) {
-    _stats = _stats.copyWith(currentStreak: streak);
-    _checkAchievements();
-    notifyListeners();
-  }
-
-  void updateProductivityScore(int score) {
-    _stats = _stats.copyWith(productivityScore: score);
-    notifyListeners();
-  }
-
+  // --- MÉTODOS DEL DASHBOARD ---
   void setMood(MoodType mood) {
     _currentMood = mood;
     notifyListeners();
   }
 
-  void setEnergyLevel(EnergyLevel level) {
-    _energyLevel = level;
-    notifyListeners();
-  }
-
-  void setUserName(String name) {
-    _userName = name;
-    notifyListeners();
-  }
-
-  void _checkAchievements() {
-    // Check and unlock achievements based on stats
-    for (int i = 0; i < _achievements.length; i++) {
-      final achievement = _achievements[i];
-      
-      if (achievement.unlocked) continue;
-
-      // Example achievement checks
-      if (achievement.title == 'Primera Semana' && _stats.currentStreak >= 7) {
-        _achievements[i] = achievement.copyWith(unlocked: true);
-      }
-      
-      if (achievement.title == 'Maestro de Tareas' && _stats.tasksCompleted >= 50) {
-        _achievements[i] = achievement.copyWith(unlocked: true);
-      }
-    }
-  }
-
   String getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) {
-      return 'Buenos días';
-    } else if (hour < 18) {
-      return 'Buenas tardes';
-    } else {
-      return 'Buenas noches';
+    if (hour < 12) return 'Buenos días';
+    if (hour < 20) return 'Buenas tardes';
+    return 'Buenas noches';
+  }
+
+  // ==========================================
+  // 3. MÉTODOS DE AUTENTICACIÓN
+  // ==========================================
+
+  // En v7+ es obligatorio inicializar Google de forma asíncrona
+  Future<void> _initGoogleSignIn() async {
+    try {
+      await _googleSignIn.initialize();
+      _isGoogleSignInInitialized = true;
+    } catch (e) {
+      debugPrint("Error inicializando Google Sign In: $e");
     }
+  }
+
+  Future<void> _ensureGoogleInitialized() async {
+    if (!_isGoogleSignInInitialized) await _initGoogleSignIn();
+  }
+
+  // REGISTRO: Ahora recibe y guarda el nombre
+  Future<String?> signUp(String email, String password, String name) async {
+    try {
+      UserCredential credential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+
+      // Actualiza el perfil de Firebase con el nombre
+      await credential.user?.updateDisplayName(name);
+      _userName = name;
+      notifyListeners();
+
+      return null;
+    } on FirebaseAuthException catch (e) {
+      return e.message;
+    }
+  }
+
+  Future<String?> login(String email, String password) async {
+    try {
+      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      return null;
+    } on FirebaseAuthException catch (e) {
+      return e.message;
+    }
+  }
+
+  Future<String?> signInWithGoogle() async {
+    await _ensureGoogleInitialized();
+    try {
+      // En v7+ usamos authenticate() obligatoriamente
+      final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate(
+        scopeHint: ['email', 'profile'],
+      );
+
+      if (googleUser == null) return 'Inicio de sesión cancelado';
+
+      // En v7+ authentication es síncrona, y la autorización de scopes es separada
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+      final authorizedUser = await googleUser.authorizationClient.authorizeScopes(['email', 'profile']);
+
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: authorizedUser.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await _auth.signInWithCredential(credential);
+      return null;
+    } on FirebaseAuthException catch (e) {
+      return e.message;
+    } catch (e) {
+      return 'Error inesperado: $e';
+    }
+  }
+
+  Future<void> logout() async {
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {}
+    await _auth.signOut();
   }
 }

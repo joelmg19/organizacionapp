@@ -12,6 +12,8 @@ import 'package:producti_app/widgets/event_timeline_item.dart';
 import 'package:producti_app/screens/focus_mode_screen.dart';
 import 'package:producti_app/screens/settings_screen.dart';
 import 'package:intl/intl.dart';
+import 'package:producti_app/widgets/task_card.dart';
+import 'package:producti_app/theme/app_colors.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});

@@ -8,9 +8,11 @@ import 'package:producti_app/providers/user_provider.dart';
 import 'package:producti_app/providers/theme_provider.dart';
 import 'package:producti_app/theme/app_theme.dart';
 import 'package:producti_app/screens/main_layout.dart';
+// Importación de la nueva pantalla de autenticación
+import 'package:producti_app/screens/auth_screen.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-// 1. Nuevas importaciones de Firebase
+// Importaciones de Firebase
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
@@ -18,7 +20,7 @@ void main() async {
   // Asegura que los bindings de Flutter estén listos
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. Inicializa Firebase utilizando las opciones generadas por FlutterFire
+  // Inicializa Firebase utilizando las opciones generadas por FlutterFire
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -43,15 +45,19 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => EventProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, child) {
+      // Utilizamos Consumer2 para escuchar los cambios del ThemeProvider y del UserProvider
+      child: Consumer2<ThemeProvider, UserProvider>(
+        builder: (context, themeProvider, userProvider, child) {
           return MaterialApp(
             title: 'ProductiApp',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeProvider.themeMode,
-            home: const MainLayout(),
+            // Lógica mágica: Si está autenticado muestra la app, si no, muestra el login
+            home: userProvider.isAuthenticated
+                ? const MainLayout()
+                : const AuthScreen(),
           );
         },
       ),

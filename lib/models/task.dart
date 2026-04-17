@@ -1,4 +1,5 @@
 import 'package:uuid/uuid.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum Priority { high, medium, low }
 enum TaskStatus { todo, inProgress, completed }
@@ -11,7 +12,7 @@ class Task {
   final TaskStatus status;
   final String category;
   final DateTime dueDate;
-  final int? estimatedTime; // in minutes
+  final int? estimatedTime; // en minutos
   final bool completed;
 
   Task({
@@ -57,23 +58,23 @@ class Task {
       'priority': priority.name,
       'status': status.name,
       'category': category,
-      'dueDate': dueDate.toIso8601String(),
+      'dueDate': Timestamp.fromDate(dueDate),
       'estimatedTime': estimatedTime,
       'completed': completed,
     };
   }
 
-  factory Task.fromJson(Map<String, dynamic> json) {
+  factory Task.fromJson(Map<String, dynamic> json, String documentId) {
     return Task(
-      id: json['id'],
-      title: json['title'],
+      id: documentId,
+      title: json['title'] ?? '',
       description: json['description'],
-      priority: Priority.values.firstWhere((e) => e.name == json['priority']),
-      status: TaskStatus.values.firstWhere((e) => e.name == json['status']),
-      category: json['category'],
-      dueDate: DateTime.parse(json['dueDate']),
+      priority: Priority.values.firstWhere((e) => e.name == json['priority'], orElse: () => Priority.medium),
+      status: TaskStatus.values.firstWhere((e) => e.name == json['status'], orElse: () => TaskStatus.todo),
+      category: json['category'] ?? 'General',
+      dueDate: (json['dueDate'] as Timestamp).toDate(),
       estimatedTime: json['estimatedTime'],
-      completed: json['completed'],
+      completed: json['completed'] ?? false,
     );
   }
 }
