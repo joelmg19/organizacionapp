@@ -11,7 +11,7 @@ import 'package:producti_app/screens/main_layout.dart';
 // Importación de la nueva pantalla de autenticación
 import 'package:producti_app/screens/auth_screen.dart';
 import 'package:intl/date_symbol_data_local.dart';
-
+import 'package:producti_app/providers/settings_provider.dart';
 // Importaciones de Firebase
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -44,6 +44,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => HabitProvider()),
         ChangeNotifierProvider(create: (_) => EventProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
       ],
       // Utilizamos Consumer2 para escuchar los cambios del ThemeProvider y del UserProvider
       child: Consumer2<ThemeProvider, UserProvider>(

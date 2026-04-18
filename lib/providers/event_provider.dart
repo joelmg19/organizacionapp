@@ -1,68 +1,105 @@
 import 'package:flutter/material.dart';
-import 'package:producti_app/models/calendar_event.dart';
-import 'package:producti_app/data/mock_data.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:device_calendar/device_calendar.dart' as dc;
+import '../models/calendar_event.dart';
 
-class EventProvider extends ChangeNotifier {
-  List<CalendarEvent> _events = [];
+class EventProvider with ChangeNotifier {
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final dc.DeviceCalendarPlugin _deviceCalendarPlugin = dc.DeviceCalendarPlugin();
 
-  EventProvider() {
-    _events = List.from(MockData.mockEvents);
-  }
+  List<CalendarEvent> _firebaseEvents = [];
+  List<CalendarEvent> _deviceEvents = [];
 
-  List<CalendarEvent> get events => _events;
-
-  List<CalendarEvent> getEventsForDay(DateTime day) {
-    return _events.where((event) {
-      return event.startTime.year == day.year &&
-             event.startTime.month == day.month &&
-             event.startTime.day == day.day;
-    }).toList()..sort((a, b) => a.startTime.compareTo(b.startTime));
-  }
-
-  List<CalendarEvent> get todayEvents {
-    return getEventsForDay(DateTime.now());
+  List<CalendarEvent> get events {
+    final allEvents = [..._firebaseEvents, ..._deviceEvents];
+    allEvents.sort((a, b) => a.startTime.compareTo(b.startTime));
+    return allEvents;
   }
 
   List<CalendarEvent> get upcomingEvents {
     final now = DateTime.now();
-    return _events.where((event) => event.startTime.isAfter(now))
-        .toList()..sort((a, b) => a.startTime.compareTo(b.startTime));
+    return events.where((e) => e.startTime.isAfter(now)).toList();
   }
 
-  void addEvent(CalendarEvent event) {
-    _events.add(event);
-    notifyListeners();
-  }
-
-  void updateEvent(CalendarEvent event) {
-    final index = _events.indexWhere((e) => e.id == event.id);
-    if (index != -1) {
-      _events[index] = event;
-      notifyListeners();
-    }
-  }
-
-  void deleteEvent(String id) {
-    _events.removeWhere((event) => event.id == id);
-    notifyListeners();
-  }
-
-  Map<DateTime, List<CalendarEvent>> getMonthlyEventMap(DateTime month) {
-    final Map<DateTime, List<CalendarEvent>> eventMap = {};
-    
-    for (var event in _events) {
-      if (event.startTime.year == month.year && 
-          event.startTime.month == month.month) {
-        final dateKey = DateTime(
-          event.startTime.year,
-          event.startTime.month,
-          event.startTime.day,
-        );
-        eventMap.putIfAbsent(dateKey, () => []);
-        eventMap[dateKey]!.add(event);
+  EventProvider() {
+    _auth.authStateChanges().listen((User? user) {
+      if (user != null) {
+        _listenToFirebaseEvents(user.uid);
+      } else {
+        _firebaseEvents = [];
+        _deviceEvents = [];
+        notifyListeners();
       }
+    });
+  }
+
+  void _listenToFirebaseEvents(String userId) {
+    _db.collection('users').doc(userId).collection('events')
+        .snapshots()
+        .listen((snapshot) {
+      _firebaseEvents = snapshot.docs.map((doc) => CalendarEvent.fromJson(doc.data(), doc.id)).toList();
+      notifyListeners();
+    });
+  }
+
+  Future<void> addEvent(CalendarEvent event) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    await _db.collection('users').doc(user.uid).collection('events').doc(event.id).set(event.toJson());
+  }
+
+  Future<void> syncDeviceCalendars() async {
+    try {
+      var permissionsGranted = await _deviceCalendarPlugin.hasPermissions();
+      if (permissionsGranted.isSuccess && !permissionsGranted.data!) {
+        permissionsGranted = await _deviceCalendarPlugin.requestPermissions();
+        if (!permissionsGranted.isSuccess || !permissionsGranted.data!) return;
+      }
+
+      final calendarsResult = await _deviceCalendarPlugin.retrieveCalendars();
+      if (calendarsResult.isSuccess && calendarsResult.data != null) {
+        _deviceEvents.clear();
+        final now = DateTime.now();
+        final startDate = now.subtract(const Duration(days: 30));
+        final endDate = now.add(const Duration(days: 365));
+
+        for (var cal in calendarsResult.data!) {
+          final eventsResult = await _deviceCalendarPlugin.retrieveEvents(
+            cal.id,
+            dc.RetrieveEventsParams(startDate: startDate, endDate: endDate),
+          );
+
+          if (eventsResult.isSuccess && eventsResult.data != null) {
+            for (var e in eventsResult.data!) {
+              if (e.start != null && e.end != null) {
+                final startDt = DateTime(e.start!.year, e.start!.month, e.start!.day, e.start!.hour, e.start!.minute);
+                final endDt = DateTime(e.end!.year, e.end!.month, e.end!.day, e.end!.hour, e.end!.minute);
+
+                _deviceEvents.add(CalendarEvent(
+                  id: e.eventId ?? '',
+                  title: e.title ?? 'Sin título',
+                  description: e.description ?? '',
+                  startTime: startDt,
+                  endTime: endDt,
+                  color: Colors.blueGrey,
+                  isDeviceEvent: true,
+                  category: 'Sistema', // <- CATEGORÍA AUTOMÁTICA
+                ));
+              }
+            }
+          }
+        }
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint("Error al sincronizar calendario: $e");
     }
-    
-    return eventMap;
+  }
+
+  void clearDeviceEvents() {
+    _deviceEvents.clear();
+    notifyListeners();
   }
 }

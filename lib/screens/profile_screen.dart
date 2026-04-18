@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:producti_app/providers/user_provider.dart';
-import 'package:producti_app/theme/app_colors.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:producti_app/data/mock_data.dart';
+import 'package:producti_app/providers/user_provider.dart';
+import 'package:producti_app/providers/task_provider.dart';
+import 'package:producti_app/providers/habit_provider.dart';
+import 'package:producti_app/theme/app_colors.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -12,316 +13,131 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
+class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
+    final taskProvider = Provider.of<TaskProvider>(context);
+    final habitProvider = Provider.of<HabitProvider>(context);
+
     final stats = userProvider.stats;
 
     return Scaffold(
-      body: SafeArea(
+      appBar: AppBar(
+        title: const Text('Mi Perfil'),
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Header
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.indigo, AppColors.purple],
-                ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(24),
-                  bottomRight: Radius.circular(24),
-                ),
-              ),
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  const CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Colors.white,
-                    child: Icon(Icons.person, size: 50, color: AppColors.indigo),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    userProvider.userName,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Nivel ${stats.level} • ${stats.tasksCompleted} tareas completadas',
-                    style: const TextStyle(color: Colors.white70),
-                  ),
-                  const SizedBox(height: 16),
-                  Card(
-                    color: Colors.white.withOpacity(0.2),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(Icons.bolt, color: Colors.yellow, size: 20),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Nivel ${stats.level}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Text(
-                                '${stats.xp} / ${stats.xpToNextLevel} XP',
-                                style: const TextStyle(color: Colors.white, fontSize: 12),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: LinearProgressIndicator(
-                              value: stats.xp / stats.xpToNextLevel,
-                              backgroundColor: Colors.white.withOpacity(0.3),
-                              valueColor: const AlwaysStoppedAnimation<Color>(Colors.yellow),
-                              minHeight: 8,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+            // --- CABECERA DEL PERFIL ---
+            CircleAvatar(
+              radius: 50,
+              backgroundColor: AppColors.blue,
+              child: Text(
+                userProvider.userName.isNotEmpty ? userProvider.userName[0].toUpperCase() : 'U',
+                style: const TextStyle(fontSize: 40, color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
+            const SizedBox(height: 16),
+            Text(userProvider.userName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            Text(userProvider.user?.email ?? '', style: const TextStyle(color: Colors.grey)),
 
-            // Tabs
-            TabBar(
-              controller: _tabController,
-              labelColor: AppColors.blue,
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: AppColors.blue,
-              tabs: const [
-                Tab(text: 'Estadísticas'),
-                Tab(text: 'Logros'),
+            const SizedBox(height: 32),
+
+            // --- TARJETAS DE ESTADÍSTICAS REALES ---
+            Row(
+              children: [
+                _buildStatCard('Nivel', '${stats.level}', Icons.star, AppColors.orange),
+                const SizedBox(width: 16),
+                _buildStatCard('Tareas', '${stats.tasksCompleted}', Icons.check_circle, AppColors.green),
+                const SizedBox(width: 16),
+                _buildStatCard('Racha', '${stats.currentStreak}', Icons.local_fire_department, AppColors.red),
               ],
             ),
 
-            // Tab Views
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildStatsTab(),
-                  _buildAchievementsTab(userProvider),
-                ],
-              ),
+            const SizedBox(height: 32),
+
+            // --- GRÁFICO: ACTIVIDAD SEMANAL REAL ---
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Actividad Semanal (Hábitos)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 200,
+              child: _buildWeeklyChart(habitProvider.weeklyActivity),
+            ),
+
+            const SizedBox(height: 32),
+
+            // --- GRÁFICO: DISTRIBUCIÓN DE TAREAS ---
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Distribución de Tareas', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 200,
+              child: _buildCategoryChart(taskProvider),
+            ),
+            const SizedBox(height: 50),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Productividad Semanal',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                height: 200,
-                child: _buildProductivityChart(),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Distribución de Tareas',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                height: 200,
-                child: _buildPieChart(),
-              ),
-            ),
-          ),
-        ],
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 8),
+            Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color)),
+            Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildAchievementsTab(UserProvider userProvider) {
-    final unlocked = userProvider.unlockedAchievements;
-    final inProgress = userProvider.inProgressAchievements;
+  Widget _buildWeeklyChart(List<int> weeklyData) {
+    final dayNames = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+    final labels = List.generate(7, (i) {
+      final date = DateTime.now().subtract(Duration(days: 6 - i));
+      return dayNames[date.weekday - 1];
+    });
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (unlocked.isNotEmpty) ...[
-            const Text(
-              'Desbloqueados',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 1.2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemCount: unlocked.length,
-              itemBuilder: (context, index) {
-                final achievement = unlocked[index];
-                return Card(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(achievement.icon, style: const TextStyle(fontSize: 36)),
-                        const SizedBox(height: 8),
-                        Text(
-                          achievement.title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        Text(
-                          achievement.description,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.white70,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-          ],
-          if (inProgress.isNotEmpty) ...[
-            const Text(
-              'En Progreso',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            ...inProgress.map((achievement) => Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                leading: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(achievement.icon, style: const TextStyle(fontSize: 24)),
-                  ),
-                ),
-                title: Text(achievement.title),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(achievement.description),
-                    const SizedBox(height: 8),
-                    if (achievement.progress != null && achievement.total != null)
-                      Column(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: LinearProgressIndicator(
-                              value: achievement.progress! / achievement.total!,
-                              backgroundColor: Colors.grey.shade200,
-                              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.blue),
-                              minHeight: 6,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${achievement.progress}/${achievement.total}',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-              ),
-            )),
-          ],
-        ],
-      ),
-    );
-  }
+    double maxY = 5;
+    if (weeklyData.isNotEmpty) {
+      final maxVal = weeklyData.reduce((a, b) => a > b ? a : b);
+      if (maxVal > 5) maxY = maxVal.toDouble() + 2;
+    }
 
-  Widget _buildProductivityChart() {
-    final data = MockData.weeklyProductivityData;
-    
-    return LineChart(
-      LineChartData(
-        gridData: const FlGridData(show: false),
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: maxY,
+        barTouchData: BarTouchData(enabled: true),
         titlesData: FlTitlesData(
+          show: true,
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
               getTitlesWidget: (value, meta) {
-                if (value.toInt() >= 0 && value.toInt() < data.length) {
-                  return Text(
-                    data[value.toInt()]['day'] as String,
-                    style: const TextStyle(fontSize: 10),
-                  );
+                int index = value.toInt();
+                if (index >= 0 && index < labels.length) {
+                  return Text(labels[index], style: const TextStyle(fontSize: 12));
                 }
                 return const Text('');
               },
@@ -331,50 +147,88 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
           topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
+        gridData: const FlGridData(show: false),
         borderData: FlBorderData(show: false),
-        lineBarsData: [
-          LineChartBarData(
-            spots: data.asMap().entries.map((entry) {
-              return FlSpot(
-                entry.key.toDouble(),
-                (entry.value['score'] as int).toDouble(),
-              );
-            }).toList(),
-            isCurved: true,
-            color: AppColors.blue,
-            barWidth: 3,
-            dotData: const FlDotData(show: true),
-            belowBarData: BarAreaData(
-              show: true,
-              color: AppColors.blue.withOpacity(0.2),
-            ),
-          ),
-        ],
+        barGroups: weeklyData.asMap().entries.map((entry) {
+          return BarChartGroupData(
+            x: entry.key,
+            barRods: [
+              BarChartRodData(
+                toY: entry.value.toDouble(),
+                color: AppColors.blue,
+                width: 16,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ],
+          );
+        }).toList(),
       ),
     );
   }
 
-  Widget _buildPieChart() {
-    final data = MockData.categoryDistribution;
-    
-    return PieChart(
-      PieChartData(
-        sections: data.map((item) {
-          return PieChartSectionData(
-            value: (item['value'] as int).toDouble(),
-            title: '${item['value']}%',
-            color: item['color'] as Color,
-            radius: 50,
-            titleStyle: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+  Widget _buildCategoryChart(TaskProvider taskProvider) {
+    // 1. Calculamos cuántas tareas hay por categoría
+    final tasks = taskProvider.tasks;
+    if (tasks.isEmpty) {
+      return const Center(child: Text('Aún no hay tareas para analizar', style: TextStyle(color: Colors.grey)));
+    }
+
+    Map<String, int> categoryCount = {};
+    for (var task in tasks) {
+      categoryCount[task.category] = (categoryCount[task.category] ?? 0) + 1;
+    }
+
+    // 2. Asignamos colores fijos a las categorías para el gráfico
+    final colors = [AppColors.blue, AppColors.orange, AppColors.green, AppColors.purple, AppColors.red];
+    int colorIndex = 0;
+
+    List<PieChartSectionData> sections = [];
+    categoryCount.forEach((category, count) {
+      sections.add(
+        PieChartSectionData(
+          color: colors[colorIndex % colors.length],
+          value: count.toDouble(),
+          title: '$count',
+          radius: 50,
+          titleStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+      );
+      colorIndex++;
+    });
+
+    return Row(
+      children: [
+        Expanded(
+          flex: 2,
+          child: PieChart(
+            PieChartData(
+              sectionsSpace: 2,
+              centerSpaceRadius: 40,
+              sections: sections,
             ),
-          );
-        }).toList(),
-        sectionsSpace: 2,
-        centerSpaceRadius: 40,
-      ),
+          ),
+        ),
+        // Leyenda
+        Expanded(
+          flex: 1,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: categoryCount.keys.toList().asMap().entries.map((entry) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Container(width: 12, height: 12, color: colors[entry.key % colors.length]),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(entry.value, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12))),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
     );
   }
 }

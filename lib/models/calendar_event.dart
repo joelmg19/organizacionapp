@@ -1,61 +1,51 @@
-import 'package:uuid/uuid.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
 
 class CalendarEvent {
   final String id;
   final String title;
+  final String description;
   final DateTime startTime;
   final DateTime endTime;
-  final String category;
   final Color color;
+  final bool isDeviceEvent;
+  final String category; // <- RECUPERAMOS LA CATEGORÍA
 
   CalendarEvent({
     String? id,
     required this.title,
+    this.description = '',
     required this.startTime,
     required this.endTime,
-    required this.category,
     required this.color,
+    this.isDeviceEvent = false,
+    this.category = 'General', // Valor por defecto
   }) : id = id ?? const Uuid().v4();
-
-  CalendarEvent copyWith({
-    String? title,
-    DateTime? startTime,
-    DateTime? endTime,
-    String? category,
-    Color? color,
-  }) {
-    return CalendarEvent(
-      id: id,
-      title: title ?? this.title,
-      startTime: startTime ?? this.startTime,
-      endTime: endTime ?? this.endTime,
-      category: category ?? this.category,
-      color: color ?? this.color,
-    );
-  }
-
-  Duration get duration => endTime.difference(startTime);
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'title': title,
-      'startTime': startTime.toIso8601String(),
-      'endTime': endTime.toIso8601String(),
-      'category': category,
+      'description': description,
+      'startTime': Timestamp.fromDate(startTime),
+      'endTime': Timestamp.fromDate(endTime),
       'color': color.value,
+      'isDeviceEvent': isDeviceEvent,
+      'category': category,
     };
   }
 
-  factory CalendarEvent.fromJson(Map<String, dynamic> json) {
+  factory CalendarEvent.fromJson(Map<String, dynamic> json, String documentId) {
     return CalendarEvent(
-      id: json['id'],
-      title: json['title'],
-      startTime: DateTime.parse(json['startTime']),
-      endTime: DateTime.parse(json['endTime']),
-      category: json['category'],
-      color: Color(json['color']),
+      id: documentId,
+      title: json['title'] ?? 'Sin título',
+      description: json['description'] ?? '',
+      startTime: (json['startTime'] as Timestamp).toDate(),
+      endTime: (json['endTime'] as Timestamp).toDate(),
+      color: Color(json['color'] ?? 0xFF3B82F6),
+      isDeviceEvent: json['isDeviceEvent'] ?? false,
+      category: json['category'] ?? 'General',
     );
   }
 }
