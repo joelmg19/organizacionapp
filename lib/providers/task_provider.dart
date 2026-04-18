@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:producti_app/models/task.dart';
+import 'package:producti_app/services/notification_service.dart';
 
 class TaskProvider extends ChangeNotifier {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -34,7 +35,6 @@ class TaskProvider extends ChangeNotifier {
     });
   }
 
-  // Las listas que pedía tu Dashboard
   List<Task> get todayTasks {
     final today = DateTime.now();
     return _tasks.where((t) => t.dueDate.year == today.year && t.dueDate.month == today.month && t.dueDate.day == today.day).toList();
@@ -59,11 +59,20 @@ class TaskProvider extends ChangeNotifier {
     }).toList();
   }
 
-  // Los métodos que pedía tu TaskCard
   Future<void> addTask(Task task) async {
     final user = _auth.currentUser;
     if (user == null) return;
     await _db.collection('users').doc(user.uid).collection('tasks').doc(task.id).set(task.toJson());
+
+    // PROGRAMAR NOTIFICACIÓN SI LA FECHA ES FUTURA
+    if (task.dueDate.isAfter(DateTime.now())) {
+      NotificationService.scheduleNotification(
+        id: task.id.hashCode,
+        title: "Tarea pendiente: ${task.title}",
+        body: task.description ?? "Es hora de completar tu tarea.",
+        scheduledDate: task.dueDate,
+      );
+    }
   }
 
   Future<void> updateTask(Task task) async {

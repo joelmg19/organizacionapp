@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:producti_app/services/notification_service.dart';
 
 class SettingsProvider extends ChangeNotifier {
   bool _pushNotifications = true;
@@ -36,6 +37,18 @@ class SettingsProvider extends ChangeNotifier {
     _dailyReminders = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('dailyReminders', value);
+
+    // LÓGICA DE RECORDATORIOS
+    if (value) {
+      final tomorrow = DateTime.now().add(const Duration(days: 1));
+      NotificationService.scheduleNotification(
+        id: 999, // ID fijo para el recordatorio diario
+        title: "¡Buenos días!",
+        body: "Revisa tus tareas y hábitos programados para hoy.",
+        scheduledDate: DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 9, 0), // 9:00 AM
+      );
+    }
+
     notifyListeners();
   }
 
@@ -44,7 +57,6 @@ class SettingsProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('systemCalendarSync', value);
     notifyListeners();
-    // NOTA: En el próximo paso aquí dispararemos la sincronización real con Google/Sistema
   }
 
   Future<void> togglePinLock(bool value) async {
