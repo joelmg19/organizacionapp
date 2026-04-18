@@ -88,7 +88,22 @@ class UserProvider with ChangeNotifier {
     await _db.collection('users').doc(uid).collection('metadata').doc('stats').set(initialStats.toJson());
   }
 
-  // --- EL CORAZÓN DE TU SISTEMA: EXPERIENCIA Y RACHA ---
+  // --- CÁLCULO DE DIFICULTAD CENTRALIZADO ---
+  // Esta función nos asegura que la matemática no falle al subir o bajar de nivel
+  int _getXpRequirementForLevel(int level) {
+    if (level == 0) return 100;
+    if (level == 1) return 250;
+    if (level == 2) return 500;
+    if (level == 3) return 1000;
+
+    int xpReq = 1000;
+    for (int i = 4; i <= level; i++) {
+      xpReq = (xpReq * 1.3).toInt();
+    }
+    return xpReq;
+  }
+
+  // --- AÑADIR EXPERIENCIA ---
   Future<void> addExperience(int amount) async {
     if (_user == null) return;
 
@@ -96,24 +111,17 @@ class UserProvider with ChangeNotifier {
     int newLevel = _stats.level;
     int newXpToNext = _stats.xpToNextLevel;
 
-    // Sube de nivel si es necesario
+    // Sube de nivel si la XP acumulada supera el límite
     while (newXp >= newXpToNext) {
       newXp -= newXpToNext;
       newLevel++;
-
-      if (newLevel == 1) newXpToNext = 250;
-      else if (newLevel == 2) newXpToNext = 500;
-      else if (newLevel == 3) newXpToNext = 1000;
-      else newXpToNext = (newXpToNext * 1.3).toInt();
+      newXpToNext = _getXpRequirementForLevel(newLevel);
     }
 
-    // ACTUALIZACIÓN DE RACHA DIARIA
-    // Obtenemos la fecha de hoy en formato "YYYY-MM-DD"
     final todayStr = DateTime.now().toIso8601String().substring(0, 10);
     int newStreak = _stats.currentStreak;
     String? newLastActive = _stats.lastActiveDate;
 
-    // Si la última actividad no fue hoy...
     if (_stats.lastActiveDate != todayStr) {
       if (_stats.lastActiveDate != null) {
         final lastDate = DateTime.parse(_stats.lastActiveDate!);
@@ -121,23 +129,50 @@ class UserProvider with ChangeNotifier {
         final diff = todayDate.difference(lastDate).inDays;
 
         if (diff == 1) {
-          newStreak++; // Fue ayer, la racha aumenta
+          newStreak++;
         } else if (diff > 1) {
-          newStreak = 1; // Faltaste un día, la racha se reinicia
+          newStreak = 1;
         }
       } else {
-        newStreak = 1; // Es la primera vez que completas algo
+        newStreak = 1;
       }
-      newLastActive = todayStr; // Marcamos hoy como el último día activo
+      newLastActive = todayStr;
     }
 
     await _db.collection('users').doc(_user!.uid).collection('metadata').doc('stats').update({
       'xp': newXp,
       'level': newLevel,
       'xpToNextLevel': newXpToNext,
-      'tasksCompleted': FieldValue.increment(1),
+      'tasksCompleted': FieldValue.increment(1), // Se completó una actividad
       'currentStreak': newStreak,
       'lastActiveDate': newLastActive,
+    });
+  }
+
+  // --- QUITAR EXPERIENCIA (NUEVA FUNCIÓN ANTI-BUG) ---
+  Future<void> removeExperience(int amount) async {
+    if (_user == null) return;
+
+    int newXp = _stats.xp - amount;
+    int newLevel = _stats.level;
+    int newXpToNext = _stats.xpToNextLevel;
+
+    // Si la XP queda en negativo, bajamos de nivel
+    while (newXp < 0) {
+      if (newLevel == 0) {
+        newXp = 0; // No se puede bajar más del Nivel 0 con 0 XP
+        break;
+      }
+      newLevel--; // Bajamos de nivel
+      newXpToNext = _getXpRequirementForLevel(newLevel); // Calculamos cuánta XP exigía el nivel anterior
+      newXp += newXpToNext; // Restauramos la XP de forma proporcional
+    }
+
+    await _db.collection('users').doc(_user!.uid).collection('metadata').doc('stats').update({
+      'xp': newXp,
+      'level': newLevel,
+      'xpToNextLevel': newXpToNext,
+      'tasksCompleted': FieldValue.increment(-1), // Deshacemos la actividad completada
     });
   }
 

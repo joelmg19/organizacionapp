@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:producti_app/providers/habit_provider.dart';
-import 'package:producti_app/providers/user_provider.dart'; // <- NUEVA IMPORTACIÓN
+import 'package:producti_app/providers/user_provider.dart'; // <- IMPORTACIÓN
 import 'package:producti_app/models/habit.dart';
 import 'package:producti_app/theme/app_colors.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -166,14 +166,16 @@ class HabitsScreen extends StatelessWidget {
     final isCompleted = habit.isCompletedToday();
     final progress = habit.currentStreak / habit.goal;
 
-    // Obtenemos el UserProvider para dar XP
+    // Obtenemos el UserProvider para dar/quitar XP
     final userProvider = Provider.of<UserProvider>(context, listen: false);
 
     return InkWell(
       onTap: () {
-        // Si no estaba completado, al completarlo damos 20 XP (y actualizamos la racha global)
+        // LÓGICA ANTI-BUG: Si marca suma 20 XP, si desmarca resta 20 XP
         if (!isCompleted) {
           userProvider.addExperience(20);
+        } else {
+          userProvider.removeExperience(20);
         }
         provider.toggleHabitCompletion(habit.id);
       },
